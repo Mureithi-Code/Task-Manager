@@ -36,26 +36,33 @@ def main_menu():
 def create_task():
     task_name = input("Enter task name: ")
     task_description = input("Enter task description: ")
-    assign_to_user = input("Assign this task to a user? (y/n): ").strip().lower()
+    assign_to_user = input("Assign this task to users? (y/n): ").strip().lower()
 
-    user_id = None  # Default to unassigned
+    users = []  # Default to unassigned
     if assign_to_user == "y":
-        print("\nTask Assignment:")
-        print("1. Assign to an existing user")
-        print("2. Create a new user")
-        option = input("Select an option: ").strip()
+        while True:
+            print("\nTask Assignment:")
+            print("1. Assign to an existing user")
+            print("2. Create a new user")
+            print("3. Done assigning users")
+            option = input("Select an option: ").strip()
 
-        if option == "1":
-            user = assign_task_to_user()
-            if user:
-                user_id = user.id  # Assign the user ID
-        elif option == "2":
-            user = create_new_user()
-            if user:
-                user_id = user.id
+            if option == "1":
+                user = assign_task_to_user()
+                if user and user not in users:
+                    users.append(user)
+            elif option == "2":
+                user = create_new_user()
+                if user and user not in users:
+                    users.append(user)
+            elif option == "3":
+                break
+            else:
+                print("Invalid choice. Please try again.")
 
     # Create the task in the database
-    create_object("Task", {"name": task_name, "description": task_description, "user_id": user_id})
+    task_data = {"name": task_name, "description": task_description, "users": users}
+    create_object("Task", task_data)
     print("\nTask created successfully.")
 
 def assign_task_to_user():
@@ -117,11 +124,12 @@ def view_tasks():
     for task in tasks:
         try:
             # Create a dictionary for each task
+            assigned_users = ", ".join([user.name for user in task.users]) if task.users else "Unassigned"
             task_entry = {
                 "id": task.id,
                 "name": task.name,
                 "description": task.description,
-                "user": task.user.name if task.user and task.user.name else "Unassigned",
+                "users": assigned_users,
             }
             task_list.append(task_entry)
         except AttributeError as e:
@@ -144,11 +152,12 @@ def find_task():
     task = find_by_id("Task", task_id)
     if task:
         # Prepare the task details for display
+        assigned_users = ", ".join([user.name for user in task.users]) if task.users else "Unassigned"
         task_details = [{
             "ID": task.id,
             "Name": task.name,
             "Description": task.description,
-            "Assigned User": task.user.name if task.user else "Unassigned",
+            "Assigned Users": assigned_users,
         }]
         
         # Display the task details in a table
@@ -158,7 +167,6 @@ def find_task():
             print(f"Error displaying table: {e}")
     else:
         print("Task not found.")
-
 
 if __name__ == "__main__":
     main_menu()
