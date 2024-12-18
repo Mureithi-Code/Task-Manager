@@ -34,75 +34,61 @@ def main_menu():
             print("Invalid choice. Please try again.")
 
 def create_task():
-    """Create a new task and optionally assign it to a user."""
-    name = input("Enter task name: ").strip()
-    description = input("Enter task description: ").strip()
+    task_name = input("Enter task name: ")
+    task_description = input("Enter task description: ")
+    assign_to_user = input("Assign this task to a user? (y/n): ").strip().lower()
 
-    assign_choice = input("Assign this task to a user? (y/n): ").strip().lower()
-    user_id = None
+    user_id = None  # Default to unassigned
+    if assign_to_user == "y":
+        print("\nTask Assignment:")
+        print("1. Assign to an existing user")
+        print("2. Create a new user")
+        option = input("Select an option: ").strip()
 
-    if assign_choice == "y":
-        user = assign_task_to_user()
-        if user:
-            user_id = user.id
+        if option == "1":
+            user = assign_task_to_user()
+            if user:
+                user_id = user.id  # Assign the user ID
+        elif option == "2":
+            user = create_new_user()
+            if user:
+                user_id = user.id
 
-    create_object("Task", {"name": name, "description": description, "user_id": user_id})
+    # Create the task in the database
+    create_object("Task", {"name": task_name, "description": task_description, "user_id": user_id})
     print("\nTask created successfully.")
 
 def assign_task_to_user():
-    """
-    Assign a task to an existing user or create a new one.
-    Returns:
-        User object of the assigned user or None.
-    """
-    print("\nTask Assignment:")
-    print("1. Assign to an existing user")
-    print("2. Create a new user")
-    choice = input("Select an option: ").strip()
+    # Fetch all users from the database
+    users = get_all_objects("User")
+    if not users:
+        print("No users found.")
+        return None  # No users to assign to
 
-    if choice == "1":
-        users = get_all_objects("User")
-        if not users:
-            print("No users available. Please create a new user.")
-            return create_new_user()
+    # Prepare user list for display
+    user_list = [{"id": user.id, "name": user.name, "email": user.email} for user in users]
+    
+    # Debugging: Print user list
+    print("DEBUG: user_list content:", user_list)
 
-        # Construct user_list as a list of dictionaries
-        user_list = [{"id": user.id, "name": user.name, "email": user.email} for user in users]
+    # Display user list
+    try:
+        display_table(user_list, headers="keys")
+    except Exception as e:
+        print("Error while displaying the table:", str(e))
+        return None
 
-        # Debug print to ensure user_list structure is valid
-        print("\nDEBUG: user_list content:", user_list)
-
-        # Verify user_list is a valid list of dictionaries
-        if not all(isinstance(item, dict) for item in user_list):
-            print("Error: user_list is not a valid list of dictionaries.")
-            return None
-
-        # Display the table using tabulate
+    # Prompt the user to select an ID
+    while True:
         try:
-            display_table(user_list, ["id", "name", "email"])
-        except Exception as e:
-            print(f"Error while displaying the table: {e}")
-            return None
-
-        # Prompt for user ID selection
-        while True:
-            try:
-                user_id = validate_input(input("Enter user ID to assign: "), int)
-                user = find_by_id("User", user_id)
-                if user:
-                    return user
-                print("Invalid user ID. Please try again.")
-            except ValueError:
-                print("Please enter a valid number for the user ID.")
-
-    elif choice == "2":
-        return create_new_user()
-
-    else:
-        print("Invalid choice. Please try again.")
-        return assign_task_to_user()
-
-
+            selected_id = int(input("Enter the ID of the user to assign the task: "))
+            selected_user = next((user for user in users if user.id == selected_id), None)
+            if not selected_user:
+                print("Invalid ID. Please try again.")
+                continue
+            return selected_user  # Return the selected user
+        except ValueError:
+            print("Please enter a valid numeric ID.")
 
 def create_new_user():
     """Create a new user and return the created user object."""
@@ -148,23 +134,31 @@ def view_tasks():
 
     # Display the table
     try:
-        display_table(task_list, ["id", "name", "description", "user"])
+        display_table(task_list, headers="keys")
     except ValueError as e:
         print(f"Error displaying table: {e}")
 
 def find_task():
-    """Find a specific task by its ID."""
+    """Find a specific task by its ID and display the details in a table."""
     task_id = validate_input(input("Enter task ID to find: "), int)
     task = find_by_id("Task", task_id)
     if task:
-        print("\nTask Details:")
-        print(f"ID: {task.id}")
-        print(f"Name: {task.name}")
-        print(f"Description: {task.description}")
-        user_name = task.user.name if task.user else "Unassigned"
-        print(f"Assigned User: {user_name}")
+        # Prepare the task details for display
+        task_details = [{
+            "ID": task.id,
+            "Name": task.name,
+            "Description": task.description,
+            "Assigned User": task.user.name if task.user else "Unassigned",
+        }]
+        
+        # Display the task details in a table
+        try:
+            display_table(task_details, headers="keys")
+        except ValueError as e:
+            print(f"Error displaying table: {e}")
     else:
         print("Task not found.")
+
 
 if __name__ == "__main__":
     main_menu()
